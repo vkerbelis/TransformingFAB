@@ -1,18 +1,31 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.example.vidmantas.transformingfab.TransformingActionButtonLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/action_button"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipToPadding="false"
+    app:buttonElevation="4dp"
+    app:buttonGravity="bottom|end"
     tools:context=".MainActivity">
 
-    <com.example.vidmantas.transformingfab.TransformingActionButton
+    <Button
+        android:id="@+id/button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="end|bottom"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:text="Snack" />
+
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="20dp"
         android:layout_marginEnd="20dp"
         android:layout_marginRight="20dp"
-        android:clipToPadding="false"
-        app:buttonElevation="2dp" />
+        app:layout_anchor="@id/action_button"
+        app:layout_anchorGravity="bottom|right" />
 
-</RelativeLayout>
+</com.example.vidmantas.transformingfab.TransformingActionButtonLayout>

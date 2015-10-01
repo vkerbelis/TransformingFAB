@@ -1,16 +1,36 @@
 package com.example.vidmantas.transformingfab;
 
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final String TAG = "MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        final TransformingActionButtonLayout actionButton = (TransformingActionButtonLayout) findViewById(R.id.action_button);
+        View revealView = ((LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE))
+                .inflate(R.layout.reveal_view, actionButton, false);
+        actionButton.setRevealView(revealView);
+        Button button = (Button) findViewById(R.id.button);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Snackbar.make(actionButton, "Snack", Snackbar.LENGTH_SHORT).show();
+            }
+        });
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
     }
 
     @Override
