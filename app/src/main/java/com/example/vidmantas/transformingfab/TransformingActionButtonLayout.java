@@ -2,10 +2,8 @@ package com.example.vidmantas.transformingfab;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
-import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -26,8 +24,8 @@ import java.util.List;
  */
 public class TransformingActionButtonLayout extends CoordinatorLayout implements View.OnClickListener {
 
-    private static final long ANIMATION_DURATION = 500;
-    private static final long ANIMATION_DELAY = 200;
+    private static final long ANIMATION_DURATION = 5000;
+    private static final long ANIMATION_DELAY = 2000;
     private static final float ANIMATION_SPEED_MULTIPLIER = 5;
     private float mElevation;
     private View mRevealView;
@@ -124,7 +122,6 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         }
         mRevealViewWrapper.setBackgroundColor(background);
         mRevealViewWrapper.addView(mRevealView);
-
 
 
         mBackgroundFadeView = new View(getContext());
@@ -234,17 +231,17 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         alphaAnimator.setStartDelay(ANIMATION_DELAY + ANIMATION_DURATION / 2);
         alphaAnimator.start();
 
-        ValueAnimator bgDimAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
-                mActionButtonColor, ((ColorDrawable) mRevealViewWrapper.getBackground()).getColor());
-        bgDimAnimator.setDuration(ANIMATION_DURATION / 2);
-        bgDimAnimator.setStartDelay(ANIMATION_DELAY);
-        bgDimAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                ViewCompat.setBackgroundTintList(mBackgroundFadeView, ColorStateList.valueOf((int) animation.getAnimatedValue()));
-            }
-        });
-        bgDimAnimator.start();
+//        ValueAnimator bgDimAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
+//                mActionButtonColor, ((ColorDrawable) mRevealViewWrapper.getBackground()).getColor());
+//        bgDimAnimator.setDuration(ANIMATION_DURATION / 2);
+//        bgDimAnimator.setStartDelay(ANIMATION_DELAY);
+//        bgDimAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+//            @Override
+//            public void onAnimationUpdate(ValueAnimator animation) {
+//                ViewCompat.setBackgroundTintList(mBackgroundFadeView, ColorStateList.valueOf((int) animation.getAnimatedValue()));
+//            }
+//        });
+//        bgDimAnimator.start();
 
         mBackgroundFadeView.setAlpha(1f);
         ValueAnimator bgAlphaAnimator = ValueAnimator.ofFloat(1f, 0f);
