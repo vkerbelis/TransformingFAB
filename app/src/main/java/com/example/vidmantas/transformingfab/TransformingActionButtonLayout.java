@@ -16,6 +16,7 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 
 import java.util.List;
 
@@ -25,11 +26,12 @@ import java.util.List;
 public class TransformingActionButtonLayout extends CoordinatorLayout implements View.OnClickListener {
 
     private static final String TAG = "TABL";
-    private static final long ANIMATION_DURATION = 5000;
-    private static final long ANIMATION_DELAY = 2000;
+    private static final long ANIMATION_DURATION = 500;
+    private static final long ANIMATION_DELAY = 200;
     private static final float ANIMATION_SPEED_MULTIPLIER = 5;
     private float mElevation;
     private View mRevealView;
+    private ViewGroup mRevealViewWrapper;
     private int mGravity;
     private int mRevealWidth;
     private int mRevealHeight;
@@ -66,14 +68,14 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     public void setRevealView(View view) {
         this.mRevealView = view;
         FloatingActionButton actionButton = (FloatingActionButton) findActionButton();
+        ViewCompat.setElevation(actionButton, mElevation);
         actionButton.setOnClickListener(this);
         actionButton.measure(0, 0);
         mActionButtonWidth = actionButton.getMeasuredWidth();
         mActionButtonHeight = actionButton.getMeasuredHeight();
         mActionButtonColor = ViewCompat.getBackgroundTintList(actionButton).getDefaultColor();
-        ViewCompat.setElevation(actionButton, mElevation);
-        ViewCompat.setElevation(mRevealView, mElevation);
         setRevealViewLayoutParams();
+        setUpRevealViewWrapper();
     }
 
     private View findActionButton() {
@@ -88,9 +90,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     }
 
     private void setRevealViewLayoutParams() {
-        mRevealView.setMinimumHeight(mActionButtonHeight);
         CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) mRevealView.getLayoutParams();
-        params.setBehavior(new RevealViewBehavior());
         if (params.width > 0 && params.height > 0) {
             mRevealWidth = params.width;
             mRevealHeight = params.height;
@@ -99,30 +99,48 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             mRevealWidth = mRevealView.getMeasuredWidth();
             mRevealHeight = mRevealView.getMeasuredHeight();
         }
+        if (mRevealHeight < mActionButtonHeight) {
+            mRevealHeight = mActionButtonHeight;
+        }
+    }
+
+    private void setUpRevealViewWrapper() {
+        mRevealViewWrapper = new FrameLayout(getContext());
+        mRevealViewWrapper.setMinimumHeight(mActionButtonHeight);
+        CoordinatorLayout.LayoutParams params = new CoordinatorLayout.LayoutParams(mRevealWidth, mRevealHeight);
+        params.setBehavior(new RevealViewBehavior());
+        ViewCompat.setElevation(mRevealViewWrapper, mElevation);
+        mRevealViewWrapper.setLayoutParams(params);
+        int background;
+        if (mRevealView.getBackground() instanceof ColorDrawable) {
+            background = ((ColorDrawable) mRevealView.getBackground()).getColor();
+        } else {
+            background = ViewCompat.getBackgroundTintList(mRevealView).getDefaultColor();
+        }
+        mRevealViewWrapper.setBackgroundColor(background);
+        mRevealViewWrapper.addView(mRevealView);
     }
 
     private void addRevealViewIfNecessary() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            if (!mRevealView.isAttachedToWindow()) {
-                this.addView(mRevealView);
+            if (!mRevealViewWrapper.isAttachedToWindow()) {
+                this.addView(mRevealViewWrapper);
             }
         } else {
             for (int i = 0; i < this.getChildCount(); i++) {
                 View child = this.getChildAt(i);
-                if (child.equals(mRevealView)) {
+                if (child.equals(mRevealViewWrapper)) {
                     return;
                 }
             }
-            this.addView(mRevealView);
+            this.addView(mRevealViewWrapper);
         }
-        mRevealView.invalidate();
-        mRevealView.requestLayout();
     }
 
     @Override
     public void onClick(final View view) {
         if (mRevealView != null) {
-            mRevealView.setVisibility(INVISIBLE);
+            mRevealViewWrapper.setVisibility(INVISIBLE);
             view.setVisibility(View.VISIBLE);
             view.setClickable(false);
             addRevealViewIfNecessary();
@@ -144,6 +162,11 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     }
 
     private void startAnimators(final View view) {
+        startImmediateAnimators(view);
+        startDelayedAnimators(view);
+    }
+
+    private void startImmediateAnimators(final View view) {
         ValueAnimator animatorX = ValueAnimator.ofFloat(0, -mRevealWidth / 2 + mActionButtonWidth / 2);
         animatorX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
@@ -164,14 +187,26 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         animatorY.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
         animatorY.start();
 
+        ValueAnimator backgroundAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
+                mActionButtonColor, ((ColorDrawable) mRevealViewWrapper.getBackground()).getColor());
+        backgroundAnimator.setDuration(ANIMATION_DELAY);
+        backgroundAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                ViewCompat.setBackgroundTintList(view, ColorStateList.valueOf((int) animation.getAnimatedValue()));
+            }
+        });
+        backgroundAnimator.start();
+    }
+
+    private void startDelayedAnimators(final View view) {
         final int cx = mRevealWidth / 2;
         final int cy = mRevealHeight / 2;
         final int endRadius = (int) Math.max(mRevealWidth * 1.3, mRevealHeight * 1.3) / 2;
         final int radius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
-
         Animator circularAnimator;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            circularAnimator = ViewAnimationUtils.createCircularReveal(mRevealView, cx, cy, radius, endRadius);
+            circularAnimator = ViewAnimationUtils.createCircularReveal(mRevealViewWrapper, cx, cy, radius, endRadius);
         } else {
             mRevealView.setAlpha(0f);
             view.setAlpha(1.0f);
@@ -179,7 +214,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             ((ValueAnimator) circularAnimator).addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
-                    mRevealView.setAlpha((float) animation.getAnimatedValue());
+                    mRevealViewWrapper.setAlpha((float) animation.getAnimatedValue());
                     view.setAlpha(1 - (float) animation.getAnimatedValue() * ANIMATION_SPEED_MULTIPLIER);
                 }
             });
@@ -192,21 +227,22 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     view.setVisibility(View.INVISIBLE);
                 }
-                mRevealView.setVisibility(View.VISIBLE);
+                mRevealViewWrapper.setVisibility(View.VISIBLE);
             }
         });
         circularAnimator.start();
 
-        ValueAnimator backgroundAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
-                mActionButtonColor, ((ColorDrawable) mRevealView.getBackground()).getColor()); // ViewCompat.getBackgroundTintList(mRevealView).getDefaultColor()
-        backgroundAnimator.setDuration(ANIMATION_DELAY);
-        backgroundAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+        mRevealView.setAlpha(0f);
+        ValueAnimator alphaAnimator = ValueAnimator.ofFloat(0f, 1f);
+        alphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
-                ViewCompat.setBackgroundTintList(view, ColorStateList.valueOf((int) animation.getAnimatedValue()));
+                mRevealView.setAlpha((float) animation.getAnimatedValue());
             }
         });
-        backgroundAnimator.start();
+        alphaAnimator.setDuration(ANIMATION_DURATION);
+        alphaAnimator.setStartDelay(ANIMATION_DELAY);
+        alphaAnimator.start();
     }
 
     public static class RevealViewBehavior extends Behavior<View> {
