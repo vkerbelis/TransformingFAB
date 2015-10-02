@@ -68,6 +68,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         FloatingActionButton actionButton = (FloatingActionButton) findActionButton();
         ViewCompat.setElevation(actionButton, mElevation);
         ViewCompat.setElevation(mRevealView, mElevation);
+        setRevealViewLayoutParams();
         actionButton.setOnClickListener(this);
         actionButton.measure(0, 0);
         mActionButtonWidth = actionButton.getMeasuredWidth();
@@ -89,8 +90,14 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     private void setRevealViewLayoutParams() {
         CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) mRevealView.getLayoutParams();
         params.setBehavior(new RevealViewBehavior());
-        mRevealWidth = params.width;
-        mRevealHeight = params.height;
+        if (params.width > 0 && params.height > 0) {
+            mRevealWidth = params.width;
+            mRevealHeight = params.height;
+        } else {
+            mRevealView.measure(0, 0);
+            mRevealWidth = mRevealView.getMeasuredWidth();
+            mRevealHeight = mRevealView.getMeasuredHeight();
+        }
     }
 
     private void addRevealViewIfNecessary() {
@@ -115,7 +122,6 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             mRevealView.setVisibility(INVISIBLE);
             view.setVisibility(View.VISIBLE);
             view.setClickable(false);
-            setRevealViewLayoutParams();
             addRevealViewIfNecessary();
 
 
