@@ -39,6 +39,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     private int mActionButtonWidth;
     private int mActionButtonHeight;
     private int mActionButtonColor;
+    private View mBackgroundFadeView;
 
     public TransformingActionButtonLayout(Context context) {
         this(context, null);
@@ -124,6 +125,15 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         }
         mRevealViewWrapper.setBackgroundColor(background);
         mRevealViewWrapper.addView(mRevealView);
+
+
+
+        mBackgroundFadeView = new View(getContext());
+        mBackgroundFadeView.setMinimumHeight(mActionButtonHeight);
+        CoordinatorLayout.LayoutParams params2 = new CoordinatorLayout.LayoutParams(mRevealWidth, mRevealHeight);
+        mBackgroundFadeView.setBackgroundColor(mActionButtonColor);
+        mBackgroundFadeView.setLayoutParams(params2);
+        mRevealViewWrapper.addView(mBackgroundFadeView);
     }
 
     private void addRevealViewIfNecessary() {
@@ -150,19 +160,6 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             view.setClickable(false);
             addRevealViewIfNecessary();
             startAnimators(view);
-
-//            Path path = new Path();
-//            path.arcTo(-mRevealWidth / 2 + mActionButtonWidth / 2 - 200,
-//                    -mRevealHeight / 2 + mActionButtonHeight / 2 - 200,
-//                    -mRevealWidth / 2 + mActionButtonWidth / 2 + 200,
-//                    -mRevealHeight / 2 + mActionButtonHeight / 2 + 200,
-//                    360, 270, false);
-//            ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(view, View.TRANSLATION_X,
-//                            View.TRANSLATION_Y, path);
-//            objectAnimator.setDuration(500);
-//            objectAnimator.start();
-
-
         }
     }
 
@@ -191,17 +188,6 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         });
         animatorY.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
         animatorY.start();
-
-        ValueAnimator backgroundAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
-                mActionButtonColor, ((ColorDrawable) mRevealViewWrapper.getBackground()).getColor());
-        backgroundAnimator.setDuration(ANIMATION_DELAY);
-        backgroundAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                ViewCompat.setBackgroundTintList(view, ColorStateList.valueOf((int) animation.getAnimatedValue()));
-            }
-        });
-        backgroundAnimator.start();
     }
 
     private void startDelayedAnimators(final View view) {
@@ -245,9 +231,33 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                 mRevealView.setAlpha((float) animation.getAnimatedValue());
             }
         });
-        alphaAnimator.setDuration(ANIMATION_DURATION);
-        alphaAnimator.setStartDelay(ANIMATION_DELAY);
+        alphaAnimator.setDuration(ANIMATION_DURATION / 2);
+        alphaAnimator.setStartDelay(ANIMATION_DELAY + ANIMATION_DURATION / 2);
         alphaAnimator.start();
+
+        ValueAnimator bgDimAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
+                mActionButtonColor, ((ColorDrawable) mRevealViewWrapper.getBackground()).getColor());
+        bgDimAnimator.setDuration(ANIMATION_DURATION / 2);
+        bgDimAnimator.setStartDelay(ANIMATION_DELAY);
+        bgDimAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                ViewCompat.setBackgroundTintList(mBackgroundFadeView, ColorStateList.valueOf((int) animation.getAnimatedValue()));
+            }
+        });
+        bgDimAnimator.start();
+
+        mBackgroundFadeView.setAlpha(1f);
+        ValueAnimator bgAlphaAnimator = ValueAnimator.ofFloat(1f, 0f);
+        bgAlphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                mBackgroundFadeView.setAlpha((float) animation.getAnimatedValue());
+            }
+        });
+        bgAlphaAnimator.setDuration(ANIMATION_DURATION / 2);
+        bgAlphaAnimator.setStartDelay(ANIMATION_DELAY);
+        bgAlphaAnimator.start();
     }
 
     public static class RevealViewBehavior extends Behavior<View> {
