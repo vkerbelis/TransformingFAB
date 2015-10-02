@@ -66,14 +66,14 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     public void setRevealView(View view) {
         this.mRevealView = view;
         FloatingActionButton actionButton = (FloatingActionButton) findActionButton();
-        ViewCompat.setElevation(actionButton, mElevation);
-        ViewCompat.setElevation(mRevealView, mElevation);
-        setRevealViewLayoutParams();
         actionButton.setOnClickListener(this);
         actionButton.measure(0, 0);
         mActionButtonWidth = actionButton.getMeasuredWidth();
         mActionButtonHeight = actionButton.getMeasuredHeight();
         mActionButtonColor = ViewCompat.getBackgroundTintList(actionButton).getDefaultColor();
+        ViewCompat.setElevation(actionButton, mElevation);
+        ViewCompat.setElevation(mRevealView, mElevation);
+        setRevealViewLayoutParams();
     }
 
     private View findActionButton() {
@@ -88,6 +88,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     }
 
     private void setRevealViewLayoutParams() {
+        mRevealView.setMinimumHeight(mActionButtonHeight);
         CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) mRevealView.getLayoutParams();
         params.setBehavior(new RevealViewBehavior());
         if (params.width > 0 && params.height > 0) {
@@ -114,6 +115,8 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             }
             this.addView(mRevealView);
         }
+        mRevealView.invalidate();
+        mRevealView.requestLayout();
     }
 
     @Override
@@ -123,7 +126,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             view.setVisibility(View.VISIBLE);
             view.setClickable(false);
             addRevealViewIfNecessary();
-
+            startAnimators(view);
 
 //            Path path = new Path();
 //            path.arcTo(-mRevealWidth / 2 + mActionButtonWidth / 2 - 200,
@@ -137,70 +140,73 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
 //            objectAnimator.start();
 
 
-            ValueAnimator animatorX = ValueAnimator.ofFloat(0, -mRevealWidth / 2 + mActionButtonWidth / 2);
-            animatorX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    view.setTranslationX((float) animation.getAnimatedValue());
-                }
-            });
-            animatorX.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
-            animatorX.start();
-
-            ValueAnimator animatorY = ValueAnimator.ofFloat(0, -mRevealHeight / 2 + mActionButtonHeight / 2);
-            animatorY.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    view.setTranslationY((float) animation.getAnimatedValue());
-                }
-            });
-            animatorY.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
-            animatorY.start();
-
-            final int cx = mRevealWidth / 2;
-            final int cy = mRevealHeight / 2;
-            final int endRadius = (int) Math.max(mRevealWidth * 1.3, mRevealHeight * 1.3) / 2;
-            final int radius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
-
-            Animator circularAnimator;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                circularAnimator = ViewAnimationUtils.createCircularReveal(mRevealView, cx, cy, radius, endRadius);
-            } else {
-                mRevealView.setAlpha(0f);
-                view.setAlpha(1.0f);
-                circularAnimator = ValueAnimator.ofFloat(0f, 1f);
-                ((ValueAnimator) circularAnimator).addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                    @Override
-                    public void onAnimationUpdate(ValueAnimator animation) {
-                        mRevealView.setAlpha((float) animation.getAnimatedValue());
-                        view.setAlpha(1 - (float) animation.getAnimatedValue() * ANIMATION_SPEED_MULTIPLIER);
-                    }
-                });
-            }
-            circularAnimator.setDuration(ANIMATION_DURATION);
-            circularAnimator.setStartDelay(ANIMATION_DELAY);
-            circularAnimator.addListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationStart(Animator animation) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        view.setVisibility(View.INVISIBLE);
-                    }
-                    mRevealView.setVisibility(View.VISIBLE);
-                }
-            });
-            circularAnimator.start();
-
-            ValueAnimator backgroundAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
-                    mActionButtonColor, ((ColorDrawable) mRevealView.getBackground()).getColor()); // ViewCompat.getBackgroundTintList(mRevealView).getDefaultColor()
-            backgroundAnimator.setDuration(ANIMATION_DELAY);
-            backgroundAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    ViewCompat.setBackgroundTintList(view, ColorStateList.valueOf((int) animation.getAnimatedValue()));
-                }
-            });
-            backgroundAnimator.start();
         }
+    }
+
+    private void startAnimators(final View view) {
+        ValueAnimator animatorX = ValueAnimator.ofFloat(0, -mRevealWidth / 2 + mActionButtonWidth / 2);
+        animatorX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                view.setTranslationX((float) animation.getAnimatedValue());
+            }
+        });
+        animatorX.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
+        animatorX.start();
+
+        ValueAnimator animatorY = ValueAnimator.ofFloat(0, -mRevealHeight / 2 + mActionButtonHeight / 2);
+        animatorY.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                view.setTranslationY((float) animation.getAnimatedValue());
+            }
+        });
+        animatorY.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
+        animatorY.start();
+
+        final int cx = mRevealWidth / 2;
+        final int cy = mRevealHeight / 2;
+        final int endRadius = (int) Math.max(mRevealWidth * 1.3, mRevealHeight * 1.3) / 2;
+        final int radius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
+
+        Animator circularAnimator;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            circularAnimator = ViewAnimationUtils.createCircularReveal(mRevealView, cx, cy, radius, endRadius);
+        } else {
+            mRevealView.setAlpha(0f);
+            view.setAlpha(1.0f);
+            circularAnimator = ValueAnimator.ofFloat(0f, 1f);
+            ((ValueAnimator) circularAnimator).addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator animation) {
+                    mRevealView.setAlpha((float) animation.getAnimatedValue());
+                    view.setAlpha(1 - (float) animation.getAnimatedValue() * ANIMATION_SPEED_MULTIPLIER);
+                }
+            });
+        }
+        circularAnimator.setDuration(ANIMATION_DURATION);
+        circularAnimator.setStartDelay(ANIMATION_DELAY);
+        circularAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    view.setVisibility(View.INVISIBLE);
+                }
+                mRevealView.setVisibility(View.VISIBLE);
+            }
+        });
+        circularAnimator.start();
+
+        ValueAnimator backgroundAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
+                mActionButtonColor, ((ColorDrawable) mRevealView.getBackground()).getColor()); // ViewCompat.getBackgroundTintList(mRevealView).getDefaultColor()
+        backgroundAnimator.setDuration(ANIMATION_DELAY);
+        backgroundAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                ViewCompat.setBackgroundTintList(view, ColorStateList.valueOf((int) animation.getAnimatedValue()));
+            }
+        });
+        backgroundAnimator.start();
     }
 
     public static class RevealViewBehavior extends Behavior<View> {
@@ -233,6 +239,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             for (int count = dependencies.size(); i < count; ++i) {
                 View dependency = (View) dependencies.get(i);
                 if (dependency instanceof FloatingActionButton) {
+                    parent.onLayoutChild(child, layoutDirection);
                     int childWidth;
                     int childHeight;
                     ViewGroup.LayoutParams params = child.getLayoutParams();
@@ -251,10 +258,10 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                     child.setLeft(child.getRight() - childWidth);
                     child.setBottom(dependency.getBottom() + (childHeight / 2) - (dependencyHeight / 2));
                     child.setTop(child.getBottom() - childHeight);
-                    break;
+                    return true;
                 }
             }
-            return true;
+            return false;
         }
     }
 }
