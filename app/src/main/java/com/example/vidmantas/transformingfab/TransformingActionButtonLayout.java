@@ -2,30 +2,21 @@ package com.example.vidmantas.transformingfab;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
-import android.animation.AnimatorSet;
 import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
 import android.content.Context;
-import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
-import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.RippleDrawable;
-import android.support.design.widget.AppBarLayout;
+import android.os.Build;
 import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
-import android.util.Log;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -34,8 +25,8 @@ import java.util.List;
 public class TransformingActionButtonLayout extends CoordinatorLayout implements View.OnClickListener {
 
     private static final String TAG = "TABL";
-    private static final long ANIMATION_DURATION = 500;
-    private static final long ANIMATION_DELAY = 200;
+    private static final long ANIMATION_DURATION = 5000;
+    private static final long ANIMATION_DELAY = 2000;
     private float mElevation;
     private float mPressedTranslation;
     private View mRevealView;
@@ -68,13 +59,54 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         a.recycle();
     }
 
+    /**
+     * NOTE: This method overrides the action button's previous onClickListener.
+     *
+     * @param view the view that will be revealed on FAB click.
+     */
     public void setRevealView(View view) {
         this.mRevealView = view;
+        FloatingActionButton actionButton = (FloatingActionButton) findActionButton();
+        ViewCompat.setElevation(actionButton, mElevation);
+        ViewCompat.setElevation(mRevealView, mElevation);
+        actionButton.setOnClickListener(this);
+        actionButton.measure(0, 0);
+        mActionButtonWidth = actionButton.getMeasuredWidth();
+        mActionButtonHeight = actionButton.getMeasuredHeight();
+        mActionButtonColor = ViewCompat.getBackgroundTintList(actionButton).getDefaultColor();
+    }
+
+    private View findActionButton() {
+        View view = null;
         for (int i = 0; i < this.getChildCount(); i++) {
             View child = this.getChildAt(i);
             if (child instanceof FloatingActionButton) {
-                child.setOnClickListener(this);
+                view = child;
             }
+        }
+        return view;
+    }
+
+    private void setRevealViewLayoutParams() {
+        CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) mRevealView.getLayoutParams();
+        params.setBehavior(new RevealViewBehavior());
+        mRevealWidth = params.width;
+        mRevealHeight = params.height;
+    }
+
+    private void addRevealViewIfNecessary() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            if (!mRevealView.isAttachedToWindow()) {
+                this.addView(mRevealView);
+            }
+        } else {
+            for (int i = 0; i < this.getChildCount(); i++) {
+                View child = this.getChildAt(i);
+                if (child.equals(mRevealView)) {
+                    return;
+                }
+            }
+            this.addView(mRevealView);
         }
     }
 
@@ -83,17 +115,24 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         if (mRevealView != null) {
             mRevealView.setVisibility(INVISIBLE);
             view.setAlpha(1.0f);
-            if (!mRevealView.isAttachedToWindow()) {
-                ViewCompat.setElevation(mRevealView, mElevation);
-                this.addView(mRevealView);
-                CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) mRevealView.getLayoutParams();
-                params.setBehavior(new RevealViewBehavior());
-                mActionButtonColor = view.getBackgroundTintList().getDefaultColor();
-                mActionButtonWidth = view.getWidth();
-                mActionButtonHeight = view.getHeight();
-                mRevealWidth = params.width;
-                mRevealHeight = params.height;
-            }
+            view.setVisibility(View.VISIBLE);
+            view.setClickable(false);
+            setRevealViewLayoutParams();
+            addRevealViewIfNecessary();
+
+
+//            Path path = new Path();
+//            path.arcTo(-mRevealWidth / 2 + mActionButtonWidth / 2 - 200,
+//                    -mRevealHeight / 2 + mActionButtonHeight / 2 - 200,
+//                    -mRevealWidth / 2 + mActionButtonWidth / 2 + 200,
+//                    -mRevealHeight / 2 + mActionButtonHeight / 2 + 200,
+//                    360, 270, false);
+//            ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(view, View.TRANSLATION_X,
+//                            View.TRANSLATION_Y, path);
+//            objectAnimator.setDuration(500);
+//            objectAnimator.start();
+
+
             ValueAnimator animatorX = ValueAnimator.ofFloat(0, -mRevealWidth / 2 + mActionButtonWidth / 2);
             animatorX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
@@ -114,8 +153,6 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             animatorY.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
             animatorY.start();
 
-            Log.d(TAG, "onClick dimensions: " + mRevealWidth + "x" + mRevealHeight);
-
             final int cx = mRevealWidth / 2;
             final int cy = mRevealHeight / 2;
             final int endRadius = (int) Math.max(mRevealWidth * 1.3, mRevealHeight * 1.3) / 2;
@@ -133,17 +170,17 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             });
             circularAnimator.start();
 
+            // ViewCompat.getBackgroundTintList(view).getDefaultColor()
             ValueAnimator backgroundAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
                     mActionButtonColor, ((ColorDrawable) mRevealView.getBackground()).getColor());
             backgroundAnimator.setDuration(ANIMATION_DELAY);
             backgroundAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
-                    view.setBackgroundTintList(ColorStateList.valueOf((int)animation.getAnimatedValue()));
+                    ViewCompat.setBackgroundTintList(view, ColorStateList.valueOf((int) animation.getAnimatedValue()));
                 }
             });
             backgroundAnimator.start();
-
         }
     }
 
@@ -159,7 +196,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
 
         @Override
         public boolean onDependentViewChanged(CoordinatorLayout parent, View child, View dependency) {
-            if(dependency instanceof FloatingActionButton) {
+            if (dependency instanceof FloatingActionButton) {
                 this.updateTranslation(parent, child, dependency);
             }
             return false;
@@ -174,7 +211,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         public boolean onLayoutChild(CoordinatorLayout parent, View child, int layoutDirection) {
             List dependencies = parent.getDependencies(child);
             int i = 0;
-            for(int count = dependencies.size(); i < count; ++i) {
+            for (int count = dependencies.size(); i < count; ++i) {
                 View dependency = (View) dependencies.get(i);
                 if (dependency instanceof FloatingActionButton) {
                     int childWidth;
