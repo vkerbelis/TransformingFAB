@@ -26,7 +26,6 @@ import java.util.List;
  */
 public class TransformingActionButtonLayout extends CoordinatorLayout implements View.OnClickListener {
 
-    private static final String TAG = "TABL";
     private static final long ANIMATION_DURATION = 500;
     private static final long ANIMATION_DELAY = 200;
     private static final float ANIMATION_SPEED_MULTIPLIER = 5;
@@ -51,10 +50,10 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
 
     public TransformingActionButtonLayout(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        init(context, attrs, defStyleAttr);
+        init(context, attrs);
     }
 
-    private void init(Context context, AttributeSet attrs, int defStyleAttr) {
+    private void init(Context context, AttributeSet attrs) {
         this.setClipToPadding(false);
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.TransformingActionButtonLayout);
         mElevation = a.getDimension(R.styleable.TransformingActionButtonLayout_buttonElevation, 0);
@@ -273,12 +272,12 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         @Override
         public boolean onDependentViewChanged(CoordinatorLayout parent, View child, View dependency) {
             if (dependency instanceof FloatingActionButton) {
-                this.updateTranslation(parent, child, dependency);
+                this.updateTranslation(child, dependency);
             }
             return false;
         }
 
-        private void updateTranslation(CoordinatorLayout parent, View child, View dependency) {
+        private void updateTranslation(View child, View dependency) {
             child.setTranslationX(dependency.getTranslationX());
             child.setTranslationY(dependency.getTranslationY());
         }
