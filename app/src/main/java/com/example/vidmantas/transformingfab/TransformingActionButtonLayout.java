@@ -27,8 +27,8 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     private static final String TAG = "TABL";
     private static final long ANIMATION_DURATION = 5000;
     private static final long ANIMATION_DELAY = 2000;
+    private static final float ANIMATION_SPEED_MULTIPLIER = 5;
     private float mElevation;
-    private float mPressedTranslation;
     private View mRevealView;
     private int mGravity;
     private int mRevealWidth;
@@ -54,7 +54,6 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         this.setClipToPadding(false);
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.TransformingActionButtonLayout);
         mElevation = a.getDimension(R.styleable.TransformingActionButtonLayout_buttonElevation, 0);
-        mPressedTranslation = a.getDimension(R.styleable.TransformingActionButtonLayout_buttonPressedTranslation, 0);
         mGravity = a.getInteger(R.styleable.TransformingActionButtonLayout_buttonGravity, 0);
         a.recycle();
     }
@@ -114,7 +113,6 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     public void onClick(final View view) {
         if (mRevealView != null) {
             mRevealView.setVisibility(INVISIBLE);
-            view.setAlpha(1.0f);
             view.setVisibility(View.VISIBLE);
             view.setClickable(false);
             setRevealViewLayoutParams();
@@ -158,21 +156,36 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             final int endRadius = (int) Math.max(mRevealWidth * 1.3, mRevealHeight * 1.3) / 2;
             final int radius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
 
-            Animator circularAnimator = ViewAnimationUtils.createCircularReveal(mRevealView, cx, cy, radius, endRadius);
+            Animator circularAnimator;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                circularAnimator = ViewAnimationUtils.createCircularReveal(mRevealView, cx, cy, radius, endRadius);
+            } else {
+                mRevealView.setAlpha(0f);
+                view.setAlpha(1.0f);
+                circularAnimator = ValueAnimator.ofFloat(0f, 1f);
+                ((ValueAnimator) circularAnimator).addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        mRevealView.setAlpha((float) animation.getAnimatedValue());
+                        view.setAlpha(1 - (float) animation.getAnimatedValue() * ANIMATION_SPEED_MULTIPLIER);
+                    }
+                });
+            }
             circularAnimator.setDuration(ANIMATION_DURATION);
             circularAnimator.setStartDelay(ANIMATION_DELAY);
             circularAnimator.addListener(new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationStart(Animator animation) {
-                    view.setVisibility(View.INVISIBLE);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        view.setVisibility(View.INVISIBLE);
+                    }
                     mRevealView.setVisibility(View.VISIBLE);
                 }
             });
             circularAnimator.start();
 
-            // ViewCompat.getBackgroundTintList(view).getDefaultColor()
             ValueAnimator backgroundAnimator = ValueAnimator.ofObject(new ArgbEvaluator(),
-                    mActionButtonColor, ((ColorDrawable) mRevealView.getBackground()).getColor());
+                    mActionButtonColor, ((ColorDrawable) mRevealView.getBackground()).getColor()); // ViewCompat.getBackgroundTintList(mRevealView).getDefaultColor()
             backgroundAnimator.setDuration(ANIMATION_DELAY);
             backgroundAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override

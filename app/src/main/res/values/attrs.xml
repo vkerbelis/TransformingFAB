@@ -3,7 +3,6 @@
 
     <declare-styleable name="TransformingActionButtonLayout">
         <attr name="buttonElevation" format="dimension" />
-        <attr name="buttonPressedTranslation" format="dimension" />
         <attr name="buttonGravity" format="integer">
             <flag name="start" value="0x800003" />
             <flag name="left" value="0x03" />
