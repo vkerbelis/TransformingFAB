@@ -7,6 +7,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
+import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.support.design.widget.CoordinatorLayout;
@@ -112,10 +113,14 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         ViewCompat.setElevation(mRevealViewWrapper, mElevation);
         mRevealViewWrapper.setLayoutParams(params);
         int background;
-        if (mRevealView.getBackground() instanceof ColorDrawable) {
-            background = ((ColorDrawable) mRevealView.getBackground()).getColor();
+        if (mRevealView.getBackground() != null) {
+            if (mRevealView.getBackground() instanceof ColorDrawable) {
+                background = ((ColorDrawable) mRevealView.getBackground()).getColor();
+            } else {
+                background = ViewCompat.getBackgroundTintList(mRevealView).getDefaultColor();
+            }
         } else {
-            background = ViewCompat.getBackgroundTintList(mRevealView).getDefaultColor();
+            background = Color.WHITE;
         }
         mRevealViewWrapper.setBackgroundColor(background);
         mRevealViewWrapper.addView(mRevealView);
