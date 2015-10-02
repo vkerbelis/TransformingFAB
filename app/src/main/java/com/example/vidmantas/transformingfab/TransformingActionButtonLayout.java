@@ -243,15 +243,17 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                     int childWidth;
                     int childHeight;
                     ViewGroup.LayoutParams params = child.getLayoutParams();
+                    int widthSpec = MeasureSpec.makeMeasureSpec(parent.getWidth(), MeasureSpec.AT_MOST);
+                    int heightSpec = MeasureSpec.makeMeasureSpec(parent.getHeight(), MeasureSpec.AT_MOST);
                     if (params.width > 0 && params.height > 0) {
                         childWidth = params.width;
                         childHeight = params.height;
                     } else {
-                        child.measure(0, 0);
+                        child.measure(widthSpec, heightSpec);
                         childWidth = child.getMeasuredWidth();
                         childHeight = child.getMeasuredHeight();
                     }
-                    dependency.measure(0, 0);
+                    dependency.measure(widthSpec, heightSpec);
                     int dependencyWidth = dependency.getMeasuredWidth();
                     int dependencyHeight = dependency.getMeasuredHeight();
                     child.setRight(dependency.getRight() + (childWidth / 2) - (dependencyWidth / 2));
