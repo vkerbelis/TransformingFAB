@@ -192,7 +192,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     private void startDelayedAnimators(final View view) {
         final int cx = mRevealWidth / 2;
         final int cy = mRevealHeight / 2;
-        final int endRadius = (int) Math.max(mRevealWidth * 1.3, mRevealHeight * 1.3) / 2;
+        final int endRadius = (int) (Math.max(mRevealWidth, mRevealHeight) / 1.3);
         final int radius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
         Animator circularAnimator;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
