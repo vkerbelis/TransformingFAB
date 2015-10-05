@@ -73,10 +73,18 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         LayoutParams params = ((LayoutParams) findActionButton().getLayoutParams());
         if (mGravity == 0) {
             mGravity = params.anchorGravity;
+            if (mGravity == 0) {
+                mGravity = Gravity.BOTTOM | Gravity.END;
+                setAnchorGravity(params);
+            }
         } else {
-            params.setAnchorId(this.getId());
-            params.anchorGravity = mGravity;
+            setAnchorGravity(params);
         }
+    }
+
+    private void setAnchorGravity(LayoutParams params) {
+        params.setAnchorId(this.getId());
+        params.anchorGravity = mGravity;
     }
 
     public void setModalAlpha(float alpha) {
@@ -187,20 +195,24 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     public void onClick(final View view) {
         if (mRevealView != null && !mAnimationRunning) {
             View actionButton;
+            boolean actionButtonClickable;
+            boolean modalClickable;
             boolean reveal = true;
             if (view.getId() == mActionButtonId) {
                 actionButton = view;
                 mRevealViewWrapper.setVisibility(INVISIBLE);
-                view.setVisibility(View.VISIBLE);
-                view.setClickable(false);
+                actionButton.setVisibility(View.VISIBLE);
+                actionButtonClickable = false;
+                modalClickable = true;
                 addRevealViewIfNecessary();
             } else {
                 actionButton = findActionButton();
-                mRevealViewWrapper.setVisibility(INVISIBLE);
-                actionButton.setVisibility(View.VISIBLE);
-                actionButton.setClickable(false);
+                actionButtonClickable = true;
+                modalClickable = false;
                 reveal = false;
             }
+            actionButton.setClickable(actionButtonClickable);
+            mModalView.setClickable(modalClickable);
             startAnimators(actionButton, reveal);
         }
     }
@@ -214,17 +226,22 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         Animator animatorModal = getAnimatorModal(reveal);
         Animator animatorRevealAlpha = getAnimatorRevealAlpha(reveal);
         Animator animatorBackgroundAlpha = getAnimatorBackgroundAlpha(reveal);
-        movementSet.playTogether(animatorX, animatorY);
         movementSet.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
                 mAnimationRunning = false;
             }
         });
+        movementSet.playTogether(animatorX, animatorY);
         movementSet.start();
-        revealSet.playTogether(animatorCircular, animatorModal, animatorBackgroundAlpha);
-        revealSet.playSequentially(animatorRevealAlpha);
-        revealSet.setStartDelay(ANIMATION_DELAY);
+        if (reveal) {
+            revealSet.playTogether(animatorCircular, animatorModal, animatorBackgroundAlpha);
+            revealSet.playSequentially(animatorRevealAlpha);
+            revealSet.setStartDelay(ANIMATION_DELAY);
+        } else {
+            revealSet.playTogether(animatorCircular, animatorModal, animatorRevealAlpha);
+            revealSet.playSequentially(animatorBackgroundAlpha);
+        }
         revealSet.start();
         mAnimationRunning = true;
     }
@@ -234,7 +251,13 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         if ((mGravity & Gravity.END) == Gravity.END) {
             xGravity = -1;
         }
-        ValueAnimator animator = ValueAnimator.ofFloat(0, xGravity * mRevealWidth / 2 + mActionButtonWidth / 2);
+        int startPos = xGravity * mRevealWidth / 2 + mActionButtonWidth / 2;
+        int endPos = 0;
+        if (reveal) {
+            endPos = startPos;
+            startPos = 0;
+        }
+        ValueAnimator animator = ValueAnimator.ofFloat(startPos, endPos);
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
@@ -251,7 +274,13 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         if ((mGravity & Gravity.BOTTOM) == Gravity.BOTTOM) {
             yGravity = -1;
         }
-        ValueAnimator animator = ValueAnimator.ofFloat(0, yGravity * mRevealHeight / 2 + mActionButtonHeight / 2);
+        int startPos = yGravity * mRevealHeight / 2 + mActionButtonHeight / 2;
+        int endPos = 0;
+        if (reveal) {
+            endPos = startPos;
+            startPos = 0;
+        }
+        ValueAnimator animator = ValueAnimator.ofFloat(startPos, endPos);
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
@@ -263,18 +292,28 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         return animator;
     }
 
-    private Animator getAnimatorCircular(final View view, boolean reveal) {
+    private Animator getAnimatorCircular(final View view, final boolean reveal) {
         final int cx = mRevealWidth / 2;
         final int cy = mRevealHeight / 2;
-        final int endRadius = (int) (Math.max(mRevealWidth, mRevealHeight) / 1.3);
-        final int radius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
+        int endRadius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
+        int radius = (int) (Math.max(mRevealWidth, mRevealHeight) / 1.3);
+        if (reveal) {
+            endRadius = radius;
+            radius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
+        }
         Animator animator;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             animator = ViewAnimationUtils.createCircularReveal(mRevealViewWrapper, cx, cy, radius, endRadius);
         } else {
             mRevealViewWrapper.setAlpha(0f);
             view.setAlpha(1.0f);
-            animator = ValueAnimator.ofFloat(0f, 1f);
+            float endAlpha = 0f;
+            float startAlpha = 1f;
+            if (reveal) {
+                endAlpha = startAlpha;
+                startAlpha = 0f;
+            }
+            animator = ValueAnimator.ofFloat(startAlpha, endAlpha);
             ((ValueAnimator) animator).addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
@@ -292,6 +331,14 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                 }
                 mRevealViewWrapper.setVisibility(View.VISIBLE);
             }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (!reveal) {
+                    mRevealViewWrapper.setVisibility(View.INVISIBLE);
+                    view.setVisibility(View.VISIBLE);
+                }
+            }
         });
         return animator;
     }
@@ -299,8 +346,14 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     private Animator getAnimatorModal(boolean reveal) {
         ValueAnimator animator = null;
         if (mModalAlpha != 0f) {
-            mModalView.setAlpha(0f);
-            animator = ValueAnimator.ofFloat(0f, mModalAlpha);
+            float endAlpha = 0f;
+            float startAlpha = mModalAlpha;
+            if (reveal) {
+                endAlpha = startAlpha;
+                startAlpha = 0f;
+            }
+            mModalView.setAlpha(startAlpha);
+            animator = ValueAnimator.ofFloat(startAlpha, endAlpha);
             animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
@@ -313,8 +366,14 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     }
 
     private Animator getAnimatorBackgroundAlpha(boolean reveal) {
-        mBackgroundFadeView.setAlpha(1f);
-        ValueAnimator animator = ValueAnimator.ofFloat(1f, 0f);
+        float endAlpha = 1f;
+        float startAlpha = 0f;
+        if (reveal) {
+            endAlpha = startAlpha;
+            startAlpha = 1f;
+        }
+        mBackgroundFadeView.setAlpha(startAlpha);
+        ValueAnimator animator = ValueAnimator.ofFloat(startAlpha, endAlpha);
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
@@ -322,12 +381,21 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             }
         });
         animator.setDuration(ANIMATION_DURATION / 2);
+        if (!reveal) {
+            animator.setStartDelay(ANIMATION_DELAY);
+        }
         return animator;
     }
 
     private Animator getAnimatorRevealAlpha(boolean reveal) {
-        mRevealView.setAlpha(0f);
-        ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
+        float endAlpha = 0f;
+        float startAlpha = 1f;
+        if (reveal) {
+            endAlpha = startAlpha;
+            startAlpha = 0f;
+        }
+        mRevealView.setAlpha(startAlpha);
+        ValueAnimator animator = ValueAnimator.ofFloat(startAlpha, endAlpha);
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
@@ -335,7 +403,9 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             }
         });
         animator.setDuration(ANIMATION_DURATION / 2);
-        animator.setStartDelay(ANIMATION_DELAY);
+        if (reveal) {
+            animator.setStartDelay(ANIMATION_DELAY);
+        }
         return animator;
     }
 
