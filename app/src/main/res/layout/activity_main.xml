@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:clipToPadding="false"
     app:buttonElevation="6dp"
-    app:buttonGravity="top|end"
+    app:buttonGravity="bottom|end"
     tools:context=".MainActivity">
 
     <Button

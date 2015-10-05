@@ -5,9 +5,7 @@
         <attr name="buttonElevation" format="dimension" />
         <attr name="buttonGravity" format="integer">
             <flag name="start" value="0x800003" />
-            <flag name="left" value="0x03" />
             <flag name="end" value="0x800005" />
-            <flag name="right" value="0x05" />
             <flag name="top" value="0x30" />
             <flag name="bottom" value="0x50" />
         </attr>
