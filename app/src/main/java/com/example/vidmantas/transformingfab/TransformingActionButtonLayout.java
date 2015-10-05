@@ -26,9 +26,9 @@ import java.util.List;
  */
 public class TransformingActionButtonLayout extends CoordinatorLayout implements View.OnClickListener {
 
-    public static final float DEFAULT_MODAL_ALPHA = 0f;
-    private static final long ANIMATION_DURATION = 5000;
-    private static final long ANIMATION_DELAY = 2000;
+    public static final float DEFAULT_MODAL_ALPHA = 0.5f;
+    private static final long ANIMATION_DURATION = 500;
+    private static final long ANIMATION_DELAY = 200;
     private static final float ANIMATION_SPEED_MULTIPLIER = 5;
     private float mElevation;
     private int mGravity;
@@ -43,6 +43,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     private View mRevealView;
     private ViewGroup mRevealViewWrapper;
     private float mModalAlpha;
+    private boolean mAnimationRunning;
 
     public TransformingActionButtonLayout(Context context) {
         this(context, null);
@@ -184,8 +185,9 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
 
     @Override
     public void onClick(final View view) {
-        View actionButton;
-        if (mRevealView != null) {
+        if (mRevealView != null && !mAnimationRunning) {
+            View actionButton;
+            boolean reveal = true;
             if (view.getId() == mActionButtonId) {
                 actionButton = view;
                 mRevealViewWrapper.setVisibility(INVISIBLE);
@@ -197,64 +199,83 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                 mRevealViewWrapper.setVisibility(INVISIBLE);
                 actionButton.setVisibility(View.VISIBLE);
                 actionButton.setClickable(false);
+                reveal = false;
             }
-            startAnimators(actionButton);
+            startAnimators(actionButton, reveal);
         }
     }
 
-    private void startAnimators(final View view) {
-        startImmediateAnimators(view);
-        startDelayedAnimators(view);
+    private void startAnimators(final View view, boolean reveal) {
+        AnimatorSet movementSet = new AnimatorSet();
+        AnimatorSet revealSet = new AnimatorSet();
+        Animator animatorX = getAnimatorX(view, reveal);
+        Animator animatorY = getAnimatorY(view, reveal);
+        Animator animatorCircular = getAnimatorCircular(view, reveal);
+        Animator animatorModal = getAnimatorModal(reveal);
+        Animator animatorRevealAlpha = getAnimatorRevealAlpha(reveal);
+        Animator animatorBackgroundAlpha = getAnimatorBackgroundAlpha(reveal);
+        movementSet.playTogether(animatorX, animatorY);
+        movementSet.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mAnimationRunning = false;
+            }
+        });
+        movementSet.start();
+        revealSet.playTogether(animatorCircular, animatorModal, animatorBackgroundAlpha);
+        revealSet.playSequentially(animatorRevealAlpha);
+        revealSet.setStartDelay(ANIMATION_DELAY);
+        revealSet.start();
+        mAnimationRunning = true;
     }
 
-    private void startImmediateAnimators(final View view) {
+    private Animator getAnimatorX(final View view, boolean reveal) {
         int xGravity = 1;
-        int yGravity = 1;
-        if ((mGravity & Gravity.BOTTOM) == Gravity.BOTTOM) {
-            yGravity = -1;
-        }
         if ((mGravity & Gravity.END) == Gravity.END) {
             xGravity = -1;
         }
-        ValueAnimator animatorX = ValueAnimator.ofFloat(0, xGravity * mRevealWidth / 2 + mActionButtonWidth / 2);
-        animatorX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+        ValueAnimator animator = ValueAnimator.ofFloat(0, xGravity * mRevealWidth / 2 + mActionButtonWidth / 2);
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 view.setTranslationX((float) animation.getAnimatedValue());
             }
         });
-        animatorX.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
-        animatorX.start();
+        animator.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
+        animator.start();
+        return animator;
+    }
 
-        ValueAnimator animatorY = ValueAnimator.ofFloat(0, yGravity * mRevealHeight / 2 + mActionButtonHeight / 2);
-        animatorY.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+    private Animator getAnimatorY(final View view, boolean reveal) {
+        int yGravity = 1;
+        if ((mGravity & Gravity.BOTTOM) == Gravity.BOTTOM) {
+            yGravity = -1;
+        }
+        ValueAnimator animator = ValueAnimator.ofFloat(0, yGravity * mRevealHeight / 2 + mActionButtonHeight / 2);
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 view.setTranslationY((float) animation.getAnimatedValue());
             }
         });
-        animatorY.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
-        animatorY.start();
+        animator.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
+        animator.start();
+        return animator;
     }
 
-    /**
-     * Don't look at this beast, just presume it works, ok? :D
-     * @param view the view that gets animated into the reveal view
-     */
-    private void startDelayedAnimators(final View view) {
+    private Animator getAnimatorCircular(final View view, boolean reveal) {
         final int cx = mRevealWidth / 2;
         final int cy = mRevealHeight / 2;
         final int endRadius = (int) (Math.max(mRevealWidth, mRevealHeight) / 1.3);
         final int radius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
-        AnimatorSet set = new AnimatorSet();
-        Animator circularAnimator;
+        Animator animator;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            circularAnimator = ViewAnimationUtils.createCircularReveal(mRevealViewWrapper, cx, cy, radius, endRadius);
+            animator = ViewAnimationUtils.createCircularReveal(mRevealViewWrapper, cx, cy, radius, endRadius);
         } else {
             mRevealViewWrapper.setAlpha(0f);
             view.setAlpha(1.0f);
-            circularAnimator = ValueAnimator.ofFloat(0f, 1f);
-            ((ValueAnimator) circularAnimator).addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            animator = ValueAnimator.ofFloat(0f, 1f);
+            ((ValueAnimator) animator).addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
                     mRevealViewWrapper.setAlpha((float) animation.getAnimatedValue());
@@ -262,9 +283,8 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                 }
             });
         }
-        circularAnimator.setDuration(ANIMATION_DURATION);
-        circularAnimator.setStartDelay(ANIMATION_DELAY);
-        circularAnimator.addListener(new AnimatorListenerAdapter() {
+        animator.setDuration(ANIMATION_DURATION);
+        animator.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationStart(Animator animation) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -273,44 +293,50 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                 mRevealViewWrapper.setVisibility(View.VISIBLE);
             }
         });
+        return animator;
+    }
 
+    private Animator getAnimatorModal(boolean reveal) {
+        ValueAnimator animator = null;
         if (mModalAlpha != 0f) {
             mModalView.setAlpha(0f);
-            ValueAnimator modalAnimator = ValueAnimator.ofFloat(0f, mModalAlpha);
-            modalAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            animator = ValueAnimator.ofFloat(0f, mModalAlpha);
+            animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
                     mModalView.setAlpha((float) animation.getAnimatedValue());
                 }
             });
-            modalAnimator.setDuration(ANIMATION_DURATION / 2);
-            modalAnimator.setStartDelay(ANIMATION_DELAY + ANIMATION_DURATION / 2);
-            set.playTogether(circularAnimator);
+            animator.setDuration(ANIMATION_DURATION);
         }
+        return animator;
+    }
 
-        mRevealView.setAlpha(0f);
-        ValueAnimator alphaAnimator = ValueAnimator.ofFloat(0f, 1f);
-        alphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                mRevealView.setAlpha((float) animation.getAnimatedValue());
-            }
-        });
-        alphaAnimator.setDuration(ANIMATION_DURATION / 2);
-
+    private Animator getAnimatorBackgroundAlpha(boolean reveal) {
         mBackgroundFadeView.setAlpha(1f);
-        ValueAnimator bgAlphaAnimator = ValueAnimator.ofFloat(1f, 0f);
-        bgAlphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+        ValueAnimator animator = ValueAnimator.ofFloat(1f, 0f);
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 mBackgroundFadeView.setAlpha((float) animation.getAnimatedValue());
             }
         });
-        bgAlphaAnimator.setDuration(ANIMATION_DURATION / 2);
-        bgAlphaAnimator.setStartDelay(ANIMATION_DELAY);
-        set.playTogether(circularAnimator);
-        set.playSequentially(bgAlphaAnimator, alphaAnimator);
-        set.start();
+        animator.setDuration(ANIMATION_DURATION / 2);
+        return animator;
+    }
+
+    private Animator getAnimatorRevealAlpha(boolean reveal) {
+        mRevealView.setAlpha(0f);
+        ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                mRevealView.setAlpha((float) animation.getAnimatedValue());
+            }
+        });
+        animator.setDuration(ANIMATION_DURATION / 2);
+        animator.setStartDelay(ANIMATION_DELAY);
+        return animator;
     }
 
     public static class RevealViewBehavior extends Behavior<View> {
