@@ -12,6 +12,7 @@ import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
@@ -56,7 +57,20 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.TransformingActionButtonLayout);
         mElevation = a.getDimension(R.styleable.TransformingActionButtonLayout_buttonElevation, 0);
         mGravity = a.getInteger(R.styleable.TransformingActionButtonLayout_buttonGravity, 0);
+
         a.recycle();
+    }
+
+    @Override
+    protected void onFinishInflate() {
+        super.onFinishInflate();
+        LayoutParams params = ((LayoutParams)findActionButton().getLayoutParams());
+        if (mGravity == 0) {
+            mGravity = params.anchorGravity;
+        } else {
+            params.setAnchorId(this.getId());
+            params.anchorGravity = mGravity;
+        }
     }
 
     /**
@@ -165,7 +179,15 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     }
 
     private void startImmediateAnimators(final View view) {
-        ValueAnimator animatorX = ValueAnimator.ofFloat(0, -mRevealWidth / 2 + mActionButtonWidth / 2);
+        int xGravity = 1;
+        int yGravity = 1;
+        if ((mGravity & Gravity.BOTTOM) == Gravity.BOTTOM) {
+            yGravity = -1;
+        }
+        if ((mGravity & Gravity.END) == Gravity.END) {
+            xGravity = -1;
+        }
+        ValueAnimator animatorX = ValueAnimator.ofFloat(0, xGravity * mRevealWidth / 2 + mActionButtonWidth / 2);
         animatorX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
@@ -175,7 +197,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         animatorX.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
         animatorX.start();
 
-        ValueAnimator animatorY = ValueAnimator.ofFloat(0, -mRevealHeight / 2 + mActionButtonHeight / 2);
+        ValueAnimator animatorY = ValueAnimator.ofFloat(0, yGravity * mRevealHeight / 2 + mActionButtonHeight / 2);
         animatorY.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
