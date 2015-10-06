@@ -28,8 +28,8 @@ import java.util.List;
 public class TransformingActionButtonLayout extends CoordinatorLayout implements View.OnClickListener {
 
     public static final float DEFAULT_MODAL_ALPHA = 0.5f;
-    private static final long ANIMATION_DURATION = 500;
-    private static final long ANIMATION_DELAY = 200;
+    private static final long ANIMATION_DURATION = 300;
+    private static final long ANIMATION_DELAY = 100;
     private static final float ANIMATION_SPEED_MULTIPLIER = 5;
     private float mElevation;
     private int mGravity;
