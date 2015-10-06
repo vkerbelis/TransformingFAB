@@ -247,7 +247,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         mAnimationRunning = true;
     }
 
-    private Animator getAnimatorX(final View view, boolean reveal) {
+    private Animator getAnimatorX(final View view, final boolean reveal) {
         int xGravity = 1;
         if ((mGravity & Gravity.END) == Gravity.END) {
             xGravity = -1;
@@ -259,10 +259,16 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             startPos = 0;
         }
         ValueAnimator animator = ValueAnimator.ofFloat(startPos, endPos);
+        final int finalStartPos = startPos;
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            public float additiveValue;
+
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
-                view.setTranslationX((float) animation.getAnimatedValue());
+                float currentValue = (float) animation.getAnimatedValue() - (reveal ? 0 : finalStartPos);
+                float value = currentValue - additiveValue;
+                additiveValue += value;
+                ViewCompat.setTranslationX(view, view.getTranslationX() + value);
             }
         });
         animator.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
@@ -270,7 +276,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         return animator;
     }
 
-    private Animator getAnimatorY(final View view, boolean reveal) {
+    private Animator getAnimatorY(final View view, final boolean reveal) {
         int yGravity = 1;
         if ((mGravity & Gravity.BOTTOM) == Gravity.BOTTOM) {
             yGravity = -1;
@@ -282,10 +288,16 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             startPos = 0;
         }
         ValueAnimator animator = ValueAnimator.ofFloat(startPos, endPos);
+        final int finalStartPos = startPos;
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            public float additiveValue;
+
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
-                view.setTranslationY((float) animation.getAnimatedValue());
+                float currentValue = (float) animation.getAnimatedValue() - (reveal ? 0 : finalStartPos);
+                float value = currentValue - additiveValue;
+                additiveValue += value;
+                ViewCompat.setTranslationY(view, view.getTranslationY() + value);
             }
         });
         animator.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
@@ -412,6 +424,8 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
 
     public static class FloatingButtonBehavior extends Behavior<FloatingActionButton> {
 
+        private float additiveValue;
+
         public FloatingButtonBehavior() {
         }
 
@@ -430,7 +444,9 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
 
         private void updateTranslation(CoordinatorLayout parent, View child) {
             float translationY = getTranslationForSnackbar(parent, child);
-            ViewCompat.setTranslationY(child, translationY);
+            float value = translationY - additiveValue;
+            additiveValue += value;
+            ViewCompat.setTranslationY(child, child.getTranslationY() + value);
         }
 
         private float getTranslationForSnackbar(CoordinatorLayout parent, View view) {
@@ -443,7 +459,6 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                     minOffset = Math.min(minOffset, ViewCompat.getTranslationY(child) - (float)child.getHeight());
                 }
             }
-
             return minOffset;
         }
 
@@ -468,8 +483,8 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         }
 
         private void updateTranslation(View child, View dependency) {
-            child.setTranslationX(dependency.getTranslationX());
-            child.setTranslationY(dependency.getTranslationY());
+            ViewCompat.setTranslationX(child, dependency.getTranslationX());
+            ViewCompat.setTranslationY(child, dependency.getTranslationY());
         }
 
         @Override
