@@ -192,24 +192,19 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     public void onClick(final View view) {
         if (mRevealView != null && !mAnimationRunning) {
             View actionButton;
-            boolean actionButtonClickable;
-            boolean modalClickable;
             boolean reveal = true;
             if (view.getId() == mActionButtonId) {
                 actionButton = view;
                 mRevealViewWrapper.setVisibility(INVISIBLE);
                 actionButton.setVisibility(View.VISIBLE);
-                actionButtonClickable = false;
-                modalClickable = true;
+                actionButton.setClickable(false);
+                mModalView.setClickable(true);
                 addRevealViewIfNecessary();
             } else {
                 actionButton = findActionButton();
-                actionButtonClickable = true;
-                modalClickable = false;
                 reveal = false;
             }
-            actionButton.setClickable(actionButtonClickable);
-            mModalView.setClickable(modalClickable);
+
             startAnimators(actionButton, reveal);
         }
     }
@@ -230,6 +225,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
                 if (!reveal) {
                     TransformingActionButtonLayout.this.removeView(mModalView);
                     TransformingActionButtonLayout.this.removeView(mRevealViewWrapper);
+                    view.setClickable(true);
                 }
             }
         });
