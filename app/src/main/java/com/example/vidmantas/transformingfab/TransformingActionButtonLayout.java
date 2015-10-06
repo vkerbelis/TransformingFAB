@@ -11,6 +11,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
 import android.view.Gravity;
@@ -59,7 +60,6 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     }
 
     private void init(Context context, AttributeSet attrs) {
-        this.setClipToPadding(false);
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.TransformingActionButtonLayout);
         mElevation = a.getDimension(R.styleable.TransformingActionButtonLayout_buttonElevation, 0);
         mGravity = a.getInteger(R.styleable.TransformingActionButtonLayout_buttonGravity, 0);
@@ -72,19 +72,14 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         super.onFinishInflate();
         LayoutParams params = ((LayoutParams) findActionButton().getLayoutParams());
         if (mGravity == 0) {
-            mGravity = params.anchorGravity;
+            mGravity = params.gravity == 0 ? params.anchorGravity : params.gravity;
             if (mGravity == 0) {
                 mGravity = Gravity.BOTTOM | Gravity.END;
-                setAnchorGravity(params);
+                params.gravity = mGravity;
             }
         } else {
-            setAnchorGravity(params);
+            params.gravity = mGravity;
         }
-    }
-
-    private void setAnchorGravity(LayoutParams params) {
-        params.setAnchorId(this.getId());
-        params.anchorGravity = mGravity;
     }
 
     public void setModalAlpha(float alpha) {
@@ -97,13 +92,15 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     }
 
     /**
-     * NOTE: This method overrides the action button's previous onClickListener.
+     * NOTE: This method overrides the action button's previous onClickListener and
+     * the default FloatingActionButton.Behavior.
      *
      * @param view the view that will be revealed on FAB click.
      */
     public void setRevealView(View view) {
         this.mRevealView = view;
         FloatingActionButton actionButton = (FloatingActionButton) findActionButton();
+        ((CoordinatorLayout.LayoutParams) actionButton.getLayoutParams()).setBehavior(new FloatingButtonBehavior());
         ViewCompat.setElevation(actionButton, mElevation);
         actionButton.setOnClickListener(this);
         actionButton.measure(0, 0);
@@ -217,7 +214,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
         }
     }
 
-    private void startAnimators(final View view, boolean reveal) {
+    private void startAnimators(final View view, final boolean reveal) {
         AnimatorSet movementSet = new AnimatorSet();
         AnimatorSet revealSet = new AnimatorSet();
         Animator animatorX = getAnimatorX(view, reveal);
@@ -230,6 +227,10 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             @Override
             public void onAnimationEnd(Animator animation) {
                 mAnimationRunning = false;
+                if (!reveal) {
+                    TransformingActionButtonLayout.this.removeView(mModalView);
+                    TransformingActionButtonLayout.this.removeView(mRevealViewWrapper);
+                }
             }
         });
         movementSet.playTogether(animatorX, animatorY);
@@ -407,6 +408,45 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
             animator.setStartDelay(ANIMATION_DELAY);
         }
         return animator;
+    }
+
+    public static class FloatingButtonBehavior extends Behavior<FloatingActionButton> {
+
+        public FloatingButtonBehavior() {
+        }
+
+        @Override
+        public boolean layoutDependsOn(CoordinatorLayout parent, FloatingActionButton child, View dependency) {
+            return dependency instanceof Snackbar.SnackbarLayout;
+        }
+
+        @Override
+        public boolean onDependentViewChanged(CoordinatorLayout parent, FloatingActionButton child, View dependency) {
+            if (dependency instanceof Snackbar.SnackbarLayout) {
+                this.updateTranslation(parent, child);
+            }
+            return false;
+        }
+
+        private void updateTranslation(CoordinatorLayout parent, View child) {
+            float translationY = getTranslationForSnackbar(parent, child);
+            ViewCompat.setTranslationY(child, translationY);
+        }
+
+        private float getTranslationForSnackbar(CoordinatorLayout parent, View view) {
+            float minOffset = 0f;
+            List dependencies = parent.getDependencies(view);
+            int i = 0;
+            for(int z = dependencies.size(); i < z; ++i) {
+                View child = (View)dependencies.get(i);
+                if(child instanceof Snackbar.SnackbarLayout && parent.doViewsOverlap(child, child)) {
+                    minOffset = Math.min(minOffset, ViewCompat.getTranslationY(child) - (float)child.getHeight());
+                }
+            }
+
+            return minOffset;
+        }
+
     }
 
     public static class RevealViewBehavior extends Behavior<View> {

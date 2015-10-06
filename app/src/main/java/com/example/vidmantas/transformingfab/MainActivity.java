@@ -1,10 +1,8 @@
 package com.example.vidmantas.transformingfab;
 
-import android.support.design.widget.FloatingActionButton;
+import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -12,8 +10,6 @@ import android.view.View;
 import android.widget.Button;
 
 public class MainActivity extends AppCompatActivity {
-
-    private static final String TAG = "MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,7 +26,6 @@ public class MainActivity extends AppCompatActivity {
                 Snackbar.make(actionButton, "Snack", Snackbar.LENGTH_SHORT).show();
             }
         });
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
     }
 
     @Override
