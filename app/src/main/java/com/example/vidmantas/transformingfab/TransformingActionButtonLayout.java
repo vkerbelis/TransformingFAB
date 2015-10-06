@@ -125,7 +125,7 @@ public class TransformingActionButtonLayout extends CoordinatorLayout implements
     }
 
     private void setRevealViewLayoutParams() {
-        CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) mRevealView.getLayoutParams();
+        ViewGroup.LayoutParams params = mRevealView.getLayoutParams();
         if (params.width > 0 && params.height > 0) {
             mRevealWidth = params.width;
             mRevealHeight = params.height;
