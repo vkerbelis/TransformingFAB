@@ -1,4 +1,4 @@
-<com.example.vidmantas.transformingfab.TransformingActionButtonLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.example.vidmantas.transformingfab.TransformingButtonCoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/action_button"
@@ -39,4 +39,4 @@
         app:backgroundTint="@android:color/holo_red_dark"
         android:layout_gravity="end|bottom"/>
 
-</com.example.vidmantas.transformingfab.TransformingActionButtonLayout>
+</com.example.vidmantas.transformingfab.TransformingButtonCoordinatorLayout>

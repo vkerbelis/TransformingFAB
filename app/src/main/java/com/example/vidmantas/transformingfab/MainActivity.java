@@ -15,7 +15,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        final TransformingActionButtonLayout actionButton = (TransformingActionButtonLayout) findViewById(R.id.action_button);
+        final TransformingButtonCoordinatorLayout actionButton = (TransformingButtonCoordinatorLayout) findViewById(R.id.action_button);
         View revealView = ((LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE))
                 .inflate(R.layout.reveal_view, actionButton, false);
         actionButton.setRevealView(revealView);
