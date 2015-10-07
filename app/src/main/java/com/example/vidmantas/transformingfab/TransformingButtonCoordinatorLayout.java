@@ -9,6 +9,7 @@ import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
+import android.support.annotation.IdRes;
 import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -29,9 +30,12 @@ import java.util.List;
 public class TransformingButtonCoordinatorLayout extends CoordinatorLayout implements View.OnClickListener {
 
     public static final float DEFAULT_MODAL_ALPHA = 0.5f;
+    public static final double DEFAULT_SIZE_CONSTRAINT_RATIO = 0.8;
     private static final long ANIMATION_DURATION = 300;
     private static final long ANIMATION_DELAY = 100;
     private static final float ANIMATION_SPEED_MULTIPLIER = 5;
+    @IdRes
+    private static final int BACKGROUND_FADE_ID = 564;
     private float mElevation;
     private int mGravity;
     private int mRevealWidth;
@@ -46,6 +50,9 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
     private ViewGroup mRevealViewWrapper;
     private float mModalAlpha;
     private boolean mAnimationRunning;
+    private boolean firstLaunch = true;
+    private boolean mReveal;
+    private boolean mCompleteDismiss;
 
     public TransformingButtonCoordinatorLayout(Context context) {
         this(context, null);
@@ -95,6 +102,10 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         }
     }
 
+    public void setRevealClickListener() {
+        findActionButton().setOnClickListener(this);
+    }
+
     /**
      * NOTE: This method overrides the action button's previous onClickListener and
      * the default FloatingActionButton.Behavior.
@@ -141,7 +152,11 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
             mRevealWidth = params.width;
             mRevealHeight = params.height;
         } else {
-            mRevealView.measure(0, 0);
+            int constrainedWidth = (int) (this.getWidth() * DEFAULT_SIZE_CONSTRAINT_RATIO);
+            int constrainedHeight = (int) (this.getHeight() * DEFAULT_SIZE_CONSTRAINT_RATIO);
+            int widthSpec = MeasureSpec.makeMeasureSpec(constrainedWidth, MeasureSpec.AT_MOST);
+            int heightSpec = MeasureSpec.makeMeasureSpec(constrainedHeight, MeasureSpec.AT_MOST);
+            mRevealView.measure(widthSpec, heightSpec);
             mRevealWidth = mRevealView.getMeasuredWidth();
             mRevealHeight = mRevealView.getMeasuredHeight();
         }
@@ -153,8 +168,20 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
     private void setUpRevealViewWrapper() {
         mRevealViewWrapper = new FrameLayout(getContext());
         mRevealViewWrapper.setMinimumHeight(mActionButtonHeight);
-        CoordinatorLayout.LayoutParams params = new CoordinatorLayout.LayoutParams(mRevealWidth, mRevealHeight);
-        params.setBehavior(new RevealViewBehavior());
+        CoordinatorLayout.LayoutParams params = new CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setBehavior(new RevealViewBehavior(new RevealViewCallback() {
+            @Override
+            public void setRevealSize(int childWidth, int childHeight) {
+                mRevealHeight = childHeight;
+                mRevealWidth = childWidth;
+                setBackgroundFadeParams();
+                if (firstLaunch && !mAnimationRunning) {
+                    firstLaunch = false;
+                    startAnimators(findActionButton(), mReveal);
+                }
+            }
+        }));
         ViewCompat.setElevation(mRevealViewWrapper, mElevation);
         mRevealViewWrapper.setLayoutParams(params);
         int background;
@@ -171,11 +198,16 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         mRevealViewWrapper.setClickable(true);
         mRevealViewWrapper.addView(mRevealView);
         mBackgroundFadeView = new View(getContext());
+        mBackgroundFadeView.setId(BACKGROUND_FADE_ID);
         mBackgroundFadeView.setMinimumHeight(mActionButtonHeight);
-        CoordinatorLayout.LayoutParams fadeParams = new CoordinatorLayout.LayoutParams(mRevealWidth, mRevealHeight);
         mBackgroundFadeView.setBackgroundColor(mActionButtonColor);
-        mBackgroundFadeView.setLayoutParams(fadeParams);
+        setBackgroundFadeParams();
         mRevealViewWrapper.addView(mBackgroundFadeView);
+    }
+
+    private void setBackgroundFadeParams() {
+        ViewGroup.LayoutParams fadeParams = new FrameLayout.LayoutParams(mRevealWidth, mRevealHeight);
+        mBackgroundFadeView.setLayoutParams(fadeParams);
     }
 
     private void setUpModalView() {
@@ -217,7 +249,10 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
                 actionButton = findActionButton();
                 reveal = false;
             }
-            startAnimators(actionButton, reveal);
+            mReveal = reveal;
+            if (!firstLaunch) {
+                startAnimators(actionButton, reveal);
+            }
         }
     }
 
@@ -324,7 +359,12 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
     private Animator getAnimatorCircular(final View view, final boolean reveal) {
         final int cx = mRevealWidth / 2;
         final int cy = mRevealHeight / 2;
-        int endRadius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
+        int endRadius;
+        if (mCompleteDismiss) {
+            endRadius = 0;
+        } else {
+            endRadius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
+        }
         int radius = (int) (Math.max(mRevealWidth, mRevealHeight) / 1.3);
         if (reveal) {
             endRadius = radius;
@@ -351,7 +391,11 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
                 }
             });
         }
-        animator.setDuration(ANIMATION_DURATION);
+        long duration = ANIMATION_DURATION;
+        if (mCompleteDismiss) {
+            duration += ANIMATION_DELAY;
+        }
+        animator.setDuration(duration);
         animator.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationStart(Animator animation) {
@@ -365,7 +409,11 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
             public void onAnimationEnd(Animator animation) {
                 if (!reveal) {
                     mRevealViewWrapper.setVisibility(View.INVISIBLE);
-                    view.setVisibility(View.VISIBLE);
+                    if (!mCompleteDismiss) {
+                        view.setVisibility(View.VISIBLE);
+                    } else {
+                        mCompleteDismiss = false;
+                    }
                 }
             }
         });
@@ -442,6 +490,17 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         onClick(mModalView);
     }
 
+    public void dismissActionButtonComplete() {
+        mCompleteDismiss = true;
+        dismissActionButton();
+    }
+
+    interface RevealViewCallback {
+
+        void setRevealSize(int childWidth, int childHeight);
+
+    }
+
     public static class FloatingButtonBehavior extends Behavior<FloatingActionButton> {
 
         private float additiveValue;
@@ -484,9 +543,14 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
 
     }
 
-    public static class RevealViewBehavior extends Behavior<View> {
+    private static class RevealViewBehavior extends Behavior<View> {
 
-        public RevealViewBehavior() {
+        private RevealViewCallback listener;
+        private int lastWidth;
+        private int lastHeight;
+
+        public RevealViewBehavior(RevealViewCallback listener) {
+            this.listener = listener;
         }
 
         @Override
@@ -514,20 +578,28 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
             for (int count = dependencies.size(); i < count; ++i) {
                 View dependency = (View) dependencies.get(i);
                 if (dependency instanceof FloatingActionButton) {
-                    parent.onLayoutChild(child, layoutDirection);
                     int childWidth;
                     int childHeight;
                     ViewGroup.LayoutParams params = child.getLayoutParams();
-                    int widthSpec = MeasureSpec.makeMeasureSpec(parent.getWidth(), MeasureSpec.AT_MOST);
-                    int heightSpec = MeasureSpec.makeMeasureSpec(parent.getHeight(), MeasureSpec.AT_MOST);
+                    int constrainedWidth = (int) (parent.getWidth() * DEFAULT_SIZE_CONSTRAINT_RATIO);
+                    int constrainedHeight = (int) (parent.getHeight() * DEFAULT_SIZE_CONSTRAINT_RATIO);
+                    int widthSpec = MeasureSpec.makeMeasureSpec(constrainedWidth, MeasureSpec.AT_MOST);
+                    int heightSpec = MeasureSpec.makeMeasureSpec(constrainedHeight, MeasureSpec.AT_MOST);
                     if (params.width > 0 && params.height > 0) {
                         childWidth = params.width;
                         childHeight = params.height;
+                        if (childWidth > constrainedWidth) {
+                            childWidth = constrainedWidth;
+                        }
+                        if (childHeight > constrainedHeight) {
+                            childHeight = constrainedHeight;
+                        }
                     } else {
                         child.measure(widthSpec, heightSpec);
                         childWidth = child.getMeasuredWidth();
                         childHeight = child.getMeasuredHeight();
                     }
+                    parent.onLayoutChild(child, layoutDirection);
                     dependency.measure(widthSpec, heightSpec);
                     int dependencyWidth = dependency.getMeasuredWidth();
                     int dependencyHeight = dependency.getMeasuredHeight();
@@ -535,6 +607,13 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
                     child.setLeft(child.getRight() - childWidth);
                     child.setBottom(dependency.getBottom() + (childHeight / 2) - (dependencyHeight / 2));
                     child.setTop(child.getBottom() - childHeight);
+                    if (lastWidth != childWidth || lastHeight != childHeight) {
+                        if (listener != null) {
+                            listener.setRevealSize(childWidth, childHeight);
+                        }
+                    }
+                    lastWidth = childWidth;
+                    lastHeight = childHeight;
                     return true;
                 }
             }
