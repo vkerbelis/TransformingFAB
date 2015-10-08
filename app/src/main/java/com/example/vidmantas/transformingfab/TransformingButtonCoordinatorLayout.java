@@ -17,6 +17,7 @@ import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
@@ -254,6 +255,11 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
                 startAnimators(actionButton, reveal);
             }
         }
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        return mAnimationRunning || super.onInterceptTouchEvent(ev);
     }
 
     private void startAnimators(final View view, final boolean reveal) {
