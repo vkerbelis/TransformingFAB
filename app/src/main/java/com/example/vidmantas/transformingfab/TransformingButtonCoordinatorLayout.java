@@ -33,13 +33,17 @@ import java.util.List;
 public class TransformingButtonCoordinatorLayout extends CoordinatorLayout implements View.OnClickListener {
 
     public static final float DEFAULT_MODAL_ALPHA = 0.5f;
+    public static final int DEFAULT_ELEVATION = 6;
     public static final double DEFAULT_SIZE_CONSTRAINT_RATIO = 0.8;
     private static final long ANIMATION_DURATION = 300;
     private static final long ANIMATION_DELAY = 100;
     private static final float ANIMATION_SPEED_MULTIPLIER = 5;
     @IdRes
     private static final int BACKGROUND_FADE_ID = 564;
+    private static final double RADIUS_SMOOTHING_VALUE = 1.3;
     private static final String TAG = "TransformingButton";
+    private static final int COORDINATE_X = 0;
+    private static final int COORDINATE_Y = 1;
     private float mElevation;
     private int mGravity;
     private int mRevealWidth;
@@ -75,7 +79,7 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.TransformingButtonCoordinatorLayout);
         mElevation = a.getDimension(R.styleable.TransformingButtonCoordinatorLayout_buttonElevation, 0);
         if (mElevation == 0) {
-            mElevation = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6, getResources().getDisplayMetrics());
+            mElevation = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, DEFAULT_ELEVATION, getResources().getDisplayMetrics());
         }
         mGravity = a.getInteger(R.styleable.TransformingButtonCoordinatorLayout_buttonGravity, 0);
         a.recycle();
@@ -189,7 +193,7 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
                 setBackgroundFadeParams();
                 if (firstLaunch && !mAnimationRunning) {
                     firstLaunch = false;
-                    startAnimators(findActionButton(), mReveal);
+                    startAnimators(findActionButton());
                 }
             }
         }));
@@ -262,7 +266,7 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
             }
             mReveal = reveal;
             if (!firstLaunch) {
-                startAnimators(actionButton, reveal);
+                startAnimators(actionButton);
             }
         }
     }
@@ -272,20 +276,20 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         return mAnimationRunning || super.onInterceptTouchEvent(ev);
     }
 
-    private void startAnimators(final View view, final boolean reveal) {
+    private void startAnimators(final View view) {
         AnimatorSet movementSet = new AnimatorSet();
         AnimatorSet revealSet = new AnimatorSet();
-        Animator animatorX = getAnimatorX(view, reveal);
-        Animator animatorY = getAnimatorY(view, reveal);
-        Animator animatorCircular = getAnimatorCircular(view, reveal);
-        Animator animatorModal = getAnimatorModal(reveal);
-        Animator animatorRevealAlpha = getAnimatorRevealAlpha(reveal);
-        Animator animatorBackgroundAlpha = getAnimatorBackgroundAlpha(reveal);
+        Animator animatorX = getCoordinateAnimator(view, mReveal, COORDINATE_X);
+        Animator animatorY = getCoordinateAnimator(view, mReveal, COORDINATE_Y);
+        Animator animatorCircular = getAnimatorCircular(view, mReveal);
+        Animator animatorModal = getAnimatorModal(mReveal);
+        Animator animatorRevealAlpha = getAnimatorRevealAlpha(mReveal);
+        Animator animatorBackgroundAlpha = getAnimatorBackgroundAlpha(mReveal);
         movementSet.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
                 mAnimationRunning = false;
-                if (!reveal) {
+                if (!mReveal) {
                     TransformingButtonCoordinatorLayout.this.removeView(mModalView);
                     TransformingButtonCoordinatorLayout.this.removeView(mRevealViewWrapper);
                     view.setClickable(true);
@@ -294,7 +298,7 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         });
         movementSet.playTogether(animatorX, animatorY);
         movementSet.start();
-        if (reveal) {
+        if (mReveal) {
             if (animatorModal != null) {
                 revealSet.playTogether(animatorCircular, animatorModal, animatorBackgroundAlpha);
             } else {
@@ -314,12 +318,15 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         mAnimationRunning = true;
     }
 
-    private Animator getAnimatorX(final View view, final boolean reveal) {
-        int xGravity = 1;
-        if ((mGravity & Gravity.END) == Gravity.END) {
-            xGravity = -1;
+    private Animator getCoordinateAnimator(final View view, final boolean reveal,
+                                           final int coordinate) {
+        int gravity = 1;
+        if (coordinate == COORDINATE_X && (mGravity & Gravity.END) == Gravity.END
+                || coordinate == COORDINATE_Y && (mGravity & Gravity.BOTTOM) == Gravity.BOTTOM) {
+            gravity = -1;
         }
-        int startPos = xGravity * mRevealWidth / 2 + mActionButtonWidth / 2;
+        int startPos = gravity * (coordinate == COORDINATE_X ? mRevealWidth : mRevealHeight) / 2
+                + (coordinate == COORDINATE_X ? mActionButtonWidth : mActionButtonHeight) / 2;
         int endPos = 0;
         if (reveal) {
             endPos = startPos;
@@ -328,43 +335,18 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         ValueAnimator animator = ValueAnimator.ofFloat(startPos, endPos);
         final int finalStartPos = startPos;
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            public float additiveValue;
+            private float additiveValue;
 
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 float currentValue = (float) animation.getAnimatedValue() - (reveal ? 0 : finalStartPos);
                 float value = currentValue - additiveValue;
                 additiveValue += value;
-                ViewCompat.setTranslationX(view, view.getTranslationX() + value);
-            }
-        });
-        animator.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
-        animator.start();
-        return animator;
-    }
-
-    private Animator getAnimatorY(final View view, final boolean reveal) {
-        int yGravity = 1;
-        if ((mGravity & Gravity.BOTTOM) == Gravity.BOTTOM) {
-            yGravity = -1;
-        }
-        int startPos = yGravity * mRevealHeight / 2 + mActionButtonHeight / 2;
-        int endPos = 0;
-        if (reveal) {
-            endPos = startPos;
-            startPos = 0;
-        }
-        ValueAnimator animator = ValueAnimator.ofFloat(startPos, endPos);
-        final int finalStartPos = startPos;
-        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            public float additiveValue;
-
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                float currentValue = (float) animation.getAnimatedValue() - (reveal ? 0 : finalStartPos);
-                float value = currentValue - additiveValue;
-                additiveValue += value;
-                ViewCompat.setTranslationY(view, view.getTranslationY() + value);
+                if (coordinate == COORDINATE_X) {
+                    ViewCompat.setTranslationX(view, view.getTranslationX() + value);
+                } else {
+                    ViewCompat.setTranslationY(view, view.getTranslationY() + value);
+                }
             }
         });
         animator.setDuration(ANIMATION_DURATION + ANIMATION_DELAY);
@@ -381,7 +363,7 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         } else {
             endRadius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
         }
-        int radius = (int) (Math.max(mRevealWidth, mRevealHeight) / 1.3);
+        int radius = (int) (Math.max(mRevealWidth, mRevealHeight) / RADIUS_SMOOTHING_VALUE);
         if (reveal) {
             endRadius = radius;
             radius = Math.max(mActionButtonWidth, mActionButtonHeight) / 2;
@@ -561,12 +543,12 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
 
     private static class RevealViewBehavior extends Behavior<View> {
 
-        private RevealViewCallback listener;
-        private int lastWidth;
-        private int lastHeight;
+        private RevealViewCallback mListener;
+        private int mLastWidth;
+        private int mLastHeight;
 
         public RevealViewBehavior(RevealViewCallback listener) {
-            this.listener = listener;
+            this.mListener = listener;
         }
 
         @Override
@@ -623,13 +605,11 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
                     child.setLeft(child.getRight() - childWidth);
                     child.setBottom(dependency.getBottom() + (childHeight / 2) - (dependencyHeight / 2));
                     child.setTop(child.getBottom() - childHeight);
-                    if (lastWidth != childWidth || lastHeight != childHeight) {
-                        if (listener != null) {
-                            listener.setRevealSize(childWidth, childHeight);
-                        }
+                    if ((mLastWidth != childWidth || mLastHeight != childHeight) && mListener != null) {
+                        mListener.setRevealSize(childWidth, childHeight);
                     }
-                    lastWidth = childWidth;
-                    lastHeight = childHeight;
+                    mLastWidth = childWidth;
+                    mLastHeight = childHeight;
                     return true;
                 }
             }
