@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -15,6 +16,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -37,6 +39,7 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
     private static final float ANIMATION_SPEED_MULTIPLIER = 5;
     @IdRes
     private static final int BACKGROUND_FADE_ID = 564;
+    private static final String TAG = "TransformingButton";
     private float mElevation;
     private int mGravity;
     private int mRevealWidth;
@@ -117,17 +120,24 @@ public class TransformingButtonCoordinatorLayout extends CoordinatorLayout imple
         if (mRevealViewWrapper == null) {
             this.mRevealView = view;
             FloatingActionButton actionButton = (FloatingActionButton) findActionButton();
-            ((CoordinatorLayout.LayoutParams) actionButton.getLayoutParams()).setBehavior(new FloatingButtonBehavior());
-            ViewCompat.setElevation(actionButton, mElevation);
-            actionButton.setOnClickListener(this);
-            actionButton.measure(0, 0);
-            mActionButtonId = actionButton.getId();
-            mActionButtonWidth = actionButton.getMeasuredWidth();
-            mActionButtonHeight = actionButton.getMeasuredHeight();
-            mActionButtonColor = ViewCompat.getBackgroundTintList(actionButton).getDefaultColor();
-            setRevealViewLayoutParams();
-            setUpRevealViewWrapper();
-            setUpModalView();
+            if (actionButton != null) {
+                ((CoordinatorLayout.LayoutParams) actionButton.getLayoutParams()).setBehavior(new FloatingButtonBehavior());
+                ViewCompat.setElevation(actionButton, mElevation);
+                actionButton.setOnClickListener(this);
+                actionButton.measure(0, 0);
+                mActionButtonId = actionButton.getId();
+                mActionButtonWidth = actionButton.getMeasuredWidth();
+                mActionButtonHeight = actionButton.getMeasuredHeight();
+                ColorStateList backgroundTintList = actionButton.getBackgroundTintList();
+                if (backgroundTintList != null) {
+                    mActionButtonColor = backgroundTintList.getDefaultColor();
+                }
+                setRevealViewLayoutParams();
+                setUpRevealViewWrapper();
+                setUpModalView();
+            } else {
+                Log.e(TAG, "Could not set up reveal view, FAB not found");
+            }
         }
     }
 
